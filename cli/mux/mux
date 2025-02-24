@@ -1,0 +1,20 @@
+#!/bin/bash
+
+CONFIG_DIR="$HOME/.config/tmuxinator"
+
+files=($(ls "$CONFIG_DIR"/*.yml | sed 's/\.yml$//' | sed "s#$CONFIG_DIR/##"))
+
+if [[ ${#files[@]} -eq 0 ]]; then
+  echo "No tmuxinator configurations found in $CONFIG_DIR"
+  exit 1
+fi
+
+echo "Select a tmuxinator configuration:"
+select choice in "${files[@]}"; do
+  if [[ -n "$choice" ]]; then
+    tmuxinator start "$choice"
+    break
+  else
+    echo "Invalid choice."
+  fi
+done
