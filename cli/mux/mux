@@ -1,47 +1,79 @@
 #!/bin/bash
 
 CONFIG_DIR="$HOME/.config/tmuxinator"
+TEMPLATE_FILE="$CONFIG_DIR/temp.yml"
 
 files=($(ls "$CONFIG_DIR"/*.yml 2>/dev/null | sed 's/\.yml$//' | sed "s#$CONFIG_DIR/##"))
 
-if [[ ${#files[@]} -eq 0 ]]; then
+if [[ ${#files[@]} -eq 0 && "$1" != "-n" && "$1" != "--new" ]]; then
   echo "No tmuxinator configurations found in $CONFIG_DIR"
   exit 1
 fi
 
-if [[ "$1" == "-l" ]]; then
-  echo "Select a tmuxinator configuration:"
-  select choice in "${files[@]}"; do
+case "$1" in
+  -l|--list)
+    echo "Select a tmuxinator configuration:"
+    select choice in "${files[@]}"; do
+      if [[ -n "$choice" ]]; then
+        tmuxinator start "$choice"
+        break
+      else
+        echo "Invalid choice."
+      fi
+    done
+    ;;
+
+  -e|--edit)
+    if ! command -v fzf &>/dev/null; then
+      echo "Error: 'fzf' is not installed. Please install it to use fuzzy search."
+      exit 1
+    fi
+
+    choice=$(printf "%s\n" "${files[@]}" | fzf --height=10 --prompt="Select a config to edit: " --border --reverse)
+    if [[ -n "$choice" ]]; then
+      ${EDITOR:-nano} "$CONFIG_DIR/$choice.yml"
+    else
+      echo "No selection made."
+    fi
+    ;;
+
+  -n|--new)
+    if [[ ! -f "$TEMPLATE_FILE" ]]; then
+      echo "Error: Template file '$TEMPLATE_FILE' not found."
+      exit 1
+    fi
+
+    read -p "Enter new configuration name: " new_name
+
+    if [[ -z "$new_name" ]]; then
+      echo "Error: No name provided."
+      exit 1
+    fi
+
+    new_file="$CONFIG_DIR/$new_name.yml"
+
+    if [[ -f "$new_file" ]]; then
+      echo "Error: Configuration '$new_name' already exists."
+      exit 1
+    fi
+
+    cp "$TEMPLATE_FILE" "$new_file"
+    echo "Configuration '$new_name' created from template."
+    ${EDITOR:-nano} "$new_file"
+    ;;
+
+  *)
+    if ! command -v fzf &>/dev/null; then
+      echo "Error: 'fzf' is not installed. Please install it to use fuzzy search."
+      exit 1
+    fi
+
+    choice=$(printf "%s\n" "${files[@]}" | fzf --height=10 --prompt="Select a tmuxinator config: " --border --reverse)
     if [[ -n "$choice" ]]; then
       tmuxinator start "$choice"
-      break
     else
-      echo "Invalid choice."
+      echo "No selection made."
     fi
-  done
-elif [[ "$1" == "-e" || "$1" == "--edit" ]]; then
-  if ! command -v fzf &>/dev/null; then
-    echo "Error: 'fzf' is not installed. Please install it to use fuzzy search."
-    exit 1
-  fi
+    ;;
+esac
 
-  choice=$(printf "%s\n" "${files[@]}" | fzf --height=10 --prompt="Select a config to edit: " --border --reverse)
-
-  if [[ -n "$choice" ]]; then
-    ${EDITOR:-nano} "$CONFIG_DIR/$choice.yml"
-  else
-    echo "No selection made."
-  fi
-else
-  if ! command -v fzf &>/dev/null; then
-    echo "Error: 'fzf' is not installed. Please install it to use fuzzy search."
-    exit 1
-  fi
-
-  choice=$(printf "%s\n" "${files[@]}" | fzf --height=10 --prompt="Select a tmuxinator config: " --border --reverse)
-  if [[ -n "$choice" ]]; then
-    tmuxinator start "$choice"
-  else
-    echo "No selection made."
-  fi
-fi
