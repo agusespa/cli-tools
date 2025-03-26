@@ -13,7 +13,7 @@ Ensure you have the following installed:
    ```sh
    chmod +x ~/.local/bin/mux
    ```
-3. Ensure template file named `temp.yml` exists in `~/.config/tmuxinator/` for creating new configurations.
+3. Ensure template file named `template.yml` exists in `~/.config/tmuxinator/` for creating new configurations.
 
 ## Usage
 Run the script with different flags to perform various actions:
@@ -39,4 +39,4 @@ This opens a fuzzy search menu to select an existing configuration and edit it w
 ```sh
 mux -n
 ```
-This prompts for a new configuration name and creates it by duplicating `temp.yml`. If the configuration already exists, it shows an error. Once created, the file opens in your default editor for modification.
+This prompts for a new configuration name and creates it by duplicating `template.yml`. If the configuration already exists, it shows an error. Once created, the file opens in your default editor for modification.
