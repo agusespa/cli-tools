@@ -19,6 +19,19 @@ if [[ "$1" == "-l" ]]; then
       echo "Invalid choice."
     fi
   done
+elif [[ "$1" == "-e" || "$1" == "--edit" ]]; then
+  if ! command -v fzf &>/dev/null; then
+    echo "Error: 'fzf' is not installed. Please install it to use fuzzy search."
+    exit 1
+  fi
+
+  choice=$(printf "%s\n" "${files[@]}" | fzf --height=10 --prompt="Select a config to edit: " --border --reverse)
+
+  if [[ -n "$choice" ]]; then
+    ${EDITOR:-nano} "$CONFIG_DIR/$choice.yml"
+  else
+    echo "No selection made."
+  fi
 else
   if ! command -v fzf &>/dev/null; then
     echo "Error: 'fzf' is not installed. Please install it to use fuzzy search."
@@ -32,4 +45,3 @@ else
     echo "No selection made."
   fi
 fi
-
