@@ -2,19 +2,34 @@
 
 CONFIG_DIR="$HOME/.config/tmuxinator"
 
-files=($(ls "$CONFIG_DIR"/*.yml | sed 's/\.yml$//' | sed "s#$CONFIG_DIR/##"))
+files=($(ls "$CONFIG_DIR"/*.yml 2>/dev/null | sed 's/\.yml$//' | sed "s#$CONFIG_DIR/##"))
 
 if [[ ${#files[@]} -eq 0 ]]; then
   echo "No tmuxinator configurations found in $CONFIG_DIR"
   exit 1
 fi
 
-echo "Select a tmuxinator configuration:"
-select choice in "${files[@]}"; do
+if [[ "$1" == "-l" ]]; then
+  echo "Select a tmuxinator configuration:"
+  select choice in "${files[@]}"; do
+    if [[ -n "$choice" ]]; then
+      tmuxinator start "$choice"
+      break
+    else
+      echo "Invalid choice."
+    fi
+  done
+else
+  if ! command -v fzf &>/dev/null; then
+    echo "Error: 'fzf' is not installed. Please install it to use fuzzy search."
+    exit 1
+  fi
+
+  choice=$(printf "%s\n" "${files[@]}" | fzf --height=10 --prompt="Select a tmuxinator config: " --border --reverse)
   if [[ -n "$choice" ]]; then
     tmuxinator start "$choice"
-    break
   else
-    echo "Invalid choice."
+    echo "No selection made."
   fi
-done
+fi
+
