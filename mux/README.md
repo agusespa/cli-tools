@@ -13,7 +13,7 @@ Ensure you have the following installed:
    ```sh
    chmod +x ~/.local/bin/mux
    ```
-3. Ensure template file named `template.yml` exists in `~/.config/tmuxinator/` for creating new configurations.
+3. Ensure a template file named `template.yml` exists in your tmuxinator config directory for creating new configurations.
 
 ## Usage
 Run the script with different flags to perform various actions:

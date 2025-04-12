@@ -1,6 +1,7 @@
 #!/bin/bash
 
-CONFIG_DIR="$HOME/.config/tmuxinator"
+CONFIG_DIR="${TMUXINATOR_CONFIG:-$HOME/.config/tmuxinator}"
+
 TEMPLATE_FILE="$CONFIG_DIR/template.yml"
 
 files=($(ls "$CONFIG_DIR"/*.yml 2>/dev/null | sed 's/\.yml$//' | sed "s#$CONFIG_DIR/##"))
