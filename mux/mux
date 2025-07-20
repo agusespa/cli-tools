@@ -44,7 +44,7 @@ case "$1" in
       exit 1
     fi
 
-    read -p "Enter new configuration name: " new_name
+    read -p "Enter new configuration filename: " new_name
 
     if [[ -z "$new_name" ]]; then
       echo "Error: No name provided."
@@ -54,7 +54,7 @@ case "$1" in
     new_file="$CONFIG_DIR/$new_name.yml"
 
     if [[ -f "$new_file" ]]; then
-      echo "Error: Configuration '$new_name' already exists."
+      echo "Error: '$new_name' already exists."
       exit 1
     fi
 
