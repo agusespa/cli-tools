@@ -1,6 +1,7 @@
 # Tmuxinator Helper Script
 
-This script allows you to easily manage your [tmuxinator](https://github.com/tmuxinator/tmuxinator) configurations using an interactive terminal interface. It supports listing, selecting, editing, and creating new configurations using fuzzy search and interactive menus.
+This script allows you to easily manage your [tmuxinator](https://github.com/tmuxinator/tmuxinator) configurations using an interactive terminal interface. 
+It supports listing, selecting, editing, and creating new configurations using fuzzy search and interactive menus.
 
 ## Prerequisites
 Ensure you have the following installed:
