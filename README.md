@@ -7,3 +7,7 @@ This repository is a collection of command-line interface (CLI) tools designed t
 ### [Mux](./mux)
 A helper script for managing [tmuxinator](https://github.com/tmuxinator/tmuxinator) configurations.
 For detailed usage and installation instructions, please refer to the [Mux README](./mux/README.md).
+
+### [Llama](./llama)
+A simple CLI tool to help construct `llama-server` commands for running local LLMs with `llama.cpp`.
+For detailed usage and installation instructions, please refer to the [Llama README](./llama/README.md).
