@@ -19,6 +19,39 @@ def get_total_system_memory():
     # TODO Add other platforms
     return None
 
+def get_advanced_memory_stats():
+    """
+    Returns a dict with 'wired', 'active', 'compressed' memory in bytes.
+    Refines available memory estimation.
+    """
+    stats = {}
+    if sys.platform == "darwin":
+        try:
+            output = subprocess.check_output(["vm_stat"]).decode("utf-8")
+            lines = output.strip().split("\n")
+            page_size = 4096 # fallback
+            # First line usually: Mach Virtual Memory Statistics: (page size of 16384 bytes)
+            if "page size of" in lines[0]:
+                try:
+                    page_size = int(lines[0].split("page size of")[1].split("bytes")[0].strip())
+                except:
+                    pass
+            
+            for line in lines[1:]:
+                parts = line.split(":")
+                if len(parts) >= 2:
+                    key = parts[0].strip()
+                    val = parts[1].strip().replace(".", "")
+                    if key == "Pages wired down":
+                        stats["wired"] = int(val) * page_size
+                    elif key == "Pages active":
+                        stats["active"] = int(val) * page_size
+                    elif key == "Pages occupied by compressor":
+                        stats["compressed"] = int(val) * page_size
+        except Exception:
+            pass
+    return stats
+
 def format_bytes(size):
     """
     Returns a human-readable string for file size.
@@ -155,7 +188,7 @@ def prompt_bool(param_name, default_value, description=None):
             return False
         print("Please enter 'y' or 'n'.")
 
-def prompt_model_selection(default_model):
+def prompt_model_selection(default_model, ram_info=None):
     """
     Lists available .gguf models and prompts user to select one.
     """
@@ -176,12 +209,13 @@ def prompt_model_selection(default_model):
             description="Path to the GGUF model file"
         )
 
-    print("\n" + "-"*40)
-    print("Available Models:")
+    print("\nAvailable Models:")
     for i, f in enumerate(gguf_files):
         size = os.path.getsize(f)
         print(f"{i+1}) {os.path.basename(f)} ({format_bytes(size)})")
     print("-"*40)
+    if ram_info:
+        print(ram_info)
 
     print("\n# Select a model by number, or enter a custom path.")
     prompt_text = f"Model Path (-m) [{default_model}]: "

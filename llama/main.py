@@ -3,7 +3,8 @@ import os
 import sys
 from utils import (
     prompt_bool, prompt_model_selection, prompt_value, get_model_dir, 
-    check_command_exists, get_total_system_memory, format_bytes, is_port_in_use
+    check_command_exists, get_total_system_memory, format_bytes, is_port_in_use,
+    get_advanced_memory_stats
 )
 
 
@@ -31,37 +32,93 @@ def main():
         if not prompt_bool("Continue anyway?", True):
             return
 
-    # Display System RAM
+    # Calculate System RAM info
     total_ram = get_total_system_memory()
-    if total_ram:
-        print(f"System RAM detected: {format_bytes(total_ram)}")
-
-    model = prompt_model_selection(default_model)
+    advanced_stats = get_advanced_memory_stats()
+    safe_ram_limit = None
+    ram_msg = None
     
-    # Check RAM vs Model Size
-    if model and os.path.exists(model) and total_ram:
+    if total_ram:
+        ram_msg = f"System RAM: {format_bytes(total_ram)}"
+        
+        if advanced_stats:
+            wired = advanced_stats.get('wired', 0)
+            compressed = advanced_stats.get('compressed', 0) 
+            # Estimate OS overhead roughly as Wired + Compressed + 2GB Buffer
+            os_overhead = wired + compressed + (2 * 1024 * 1024 * 1024)
+            safe_ram_limit = total_ram - os_overhead
+            if safe_ram_limit < 0: safe_ram_limit = 0
+            
+            ram_msg += f" (Est. Available: {format_bytes(safe_ram_limit)})"
+
+    # Calculate the limit to use for all subsequent checks
+    limit_to_use = safe_ram_limit if safe_ram_limit is not None else total_ram
+
+    model = prompt_model_selection(default_model, ram_info=ram_msg)
+    
+    # Check RAM vs Model Size (Preliminary)
+    if model and os.path.exists(model) and total_ram and limit_to_use is not None:
         size = os.path.getsize(model)
-        # Crude heuristic: Check if model file is > 80% or > 100% of RAM
-        # This is very conservative as it ignores quantization efficiency, but safe.
-        if size > total_ram:
-            print(f"\n[CRITICAL] Model size ({format_bytes(size)}) exceeds total system RAM ({format_bytes(total_ram)})!")
-            print("This will likely crash or swap heavily.")
+        
+        if size > limit_to_use:
+            print(f"\n[CRITICAL] Model size ({format_bytes(size)}) exceeds estimated available RAM ({format_bytes(limit_to_use)})!")
             if not prompt_bool("Are you sure you want to use this model?", False):
                 return
-        elif size > (total_ram * 0.8):
-             print(f"\n[WARNING] Model size ({format_bytes(size)}) is close to system RAM limit.")
     
+    # Check RAM vs Model Size + Context
+    model_size = 0
+    if model and os.path.exists(model):
+        model_size = os.path.getsize(model)
+        
+    # Calculate Dynamic Default Context
+    current_default_ctx = default_ctx
+    
+    if limit_to_use is not None and model_size > 0:
+        available_for_ctx = limit_to_use - model_size
+        if available_for_ctx > 0:
+            # Check standard sizes in decreasing order
+            options = [65536, 32768, 16384, 8192]
+            for opt in options:
+                est_usage = opt * 0.25 * 1024 * 1024
+                if est_usage <= available_for_ctx:
+                    current_default_ctx = str(opt)
+                    break
+            # If none fit (e.g. very tight), fallback to 4096 or keep original default
+            if int(current_default_ctx) > 32768: # Cap default at reasonable high if needed or just let it float
+                 pass 
+
     alias = prompt_value(
         "Alias (--alias)", 
         default_alias, 
         description="A recognizable name for ease of use with agents."
     )
     
-    ctx = prompt_value(
+    ctx_input = prompt_value(
         "Context Size (-c)", 
-        default_ctx, 
+        current_default_ctx, 
         description="Size of the prompt context (tokens). Higher values use more VRAM."
     )
+    
+    while True:
+        try:
+            ctx_val = int(ctx_input)
+        except ValueError:
+            ctx_val = 0
+            
+        kv_cache_size = ctx_val * 0.25 * 1024 * 1024 
+        total_est_usage = model_size + kv_cache_size
+        
+        if total_ram and limit_to_use is not None:
+            if total_est_usage > limit_to_use:
+                 print(f"\n[WARNING] Est. usage (Model {format_bytes(model_size)} + KV {format_bytes(kv_cache_size)} = {format_bytes(total_est_usage)}) exceeds estimated available RAM ({format_bytes(limit_to_use)})!")
+                 print("This might cause swapping depending on the model architecture.")
+                 if not prompt_bool("Continue with this context size?", False):
+                     ctx_input = prompt_value("Enter a smaller context size", current_default_ctx)
+                     continue
+        
+        break
+
+    ctx = ctx_input
     
     n_predict = prompt_value(
         "Predict Length (-n)", 
@@ -93,7 +150,6 @@ def main():
         description="Port listener for the server."
     )
     
-    # Check Port
     if is_port_in_use(port_input):
          print(f"\n[WARNING] Port {port_input} appears to be in use.")
          if not prompt_bool("Use this port anyway?", False):
