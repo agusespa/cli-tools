@@ -1,7 +1,49 @@
 import os
-
+import shutil
+import socket
+import subprocess
+import sys
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
+
+def get_total_system_memory():
+    """
+    Returns total system memory in bytes.
+    On Mac, uses sysctl. On others, returns None.
+    """
+    if sys.platform == "darwin":
+        try:
+            return int(subprocess.check_output(["sysctl", "-n", "hw.memsize"]).strip())
+        except (subprocess.CalledProcessError, ValueError):
+            return None
+    # TODO Add other platforms
+    return None
+
+def format_bytes(size):
+    """
+    Returns a human-readable string for file size.
+    """
+    power = 1024
+    n = size
+    power_labels = {0 : '', 1: 'K', 2: 'M', 3: 'G', 4: 'T'}
+    curr = 0
+    while n > power and curr < 4:
+        n /= power
+        curr += 1
+    return f"{n:.2f}{power_labels[curr]}B"
+
+def is_port_in_use(port):
+    """
+    Checks if a TCP port is currently in use.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', int(port))) == 0
+
+def check_command_exists(cmd):
+    """
+    Checks if a command exists in the system PATH.
+    """
+    return shutil.which(cmd) is not None
 
 def load_config():
     config = {}
@@ -49,10 +91,8 @@ def prompt_for_config_setup():
     Prompts user to set up the model directory config.
     Returns the path they enter (or None).
     """
-    print("\n" + "="*40)
-    print("Output: No GGUF models found.")
+    print("\nNo GGUF models found.")
     print("It looks like this is your first time running this tool (or no models were found).")
-    print("="*40)
     
     user_input = ""
     while not user_input:
@@ -76,7 +116,6 @@ def prompt_for_config_setup():
         else:
             return None
 
-    # Save to config
     save_config({"model_dir": path})
     print(f"Configuration saved to {CONFIG_FILE}")
     return path
@@ -137,11 +176,12 @@ def prompt_model_selection(default_model):
             description="Path to the GGUF model file"
         )
 
-    print("\n" + "="*40)
+    print("\n" + "-"*40)
     print("Available Models:")
     for i, f in enumerate(gguf_files):
-        print(f"{i+1}) {os.path.basename(f)}")
-    print("="*40)
+        size = os.path.getsize(f)
+        print(f"{i+1}) {os.path.basename(f)} ({format_bytes(size)})")
+    print("-"*40)
 
     print("\n# Select a model by number, or enter a custom path.")
     prompt_text = f"Model Path (-m) [{default_model}]: "

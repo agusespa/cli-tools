@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 import os
 import sys
-from utils import prompt_bool, prompt_model_selection, prompt_value, get_model_dir
+from utils import (
+    prompt_bool, prompt_model_selection, prompt_value, get_model_dir, 
+    check_command_exists, get_total_system_memory, format_bytes, is_port_in_use
+)
 
 
 default_model = None
@@ -17,9 +20,36 @@ default_fa = False
 default_jinja = True
 
 def main():
+    print("=" * 40)
     print("Llama Command Builder")
+    print("=" * 40)
+    
+    # Check for binary
+    if not check_command_exists("llama-server"):
+        print("\n[WARNING] 'llama-server' binary not found in PATH.")
+        print("You may need to install it or ensure it's in your PATH.")
+        if not prompt_bool("Continue anyway?", True):
+            return
+
+    # Display System RAM
+    total_ram = get_total_system_memory()
+    if total_ram:
+        print(f"System RAM detected: {format_bytes(total_ram)}")
 
     model = prompt_model_selection(default_model)
+    
+    # Check RAM vs Model Size
+    if model and os.path.exists(model) and total_ram:
+        size = os.path.getsize(model)
+        # Crude heuristic: Check if model file is > 80% or > 100% of RAM
+        # This is very conservative as it ignores quantization efficiency, but safe.
+        if size > total_ram:
+            print(f"\n[CRITICAL] Model size ({format_bytes(size)}) exceeds total system RAM ({format_bytes(total_ram)})!")
+            print("This will likely crash or swap heavily.")
+            if not prompt_bool("Are you sure you want to use this model?", False):
+                return
+        elif size > (total_ram * 0.8):
+             print(f"\n[WARNING] Model size ({format_bytes(size)}) is close to system RAM limit.")
     
     alias = prompt_value(
         "Alias (--alias)", 
@@ -57,11 +87,23 @@ def main():
         description="Physical batch size."
     )
     
-    port = prompt_value(
+    port_input = prompt_value(
         "Port (--port)", 
         default_port, 
         description="Port listener for the server."
     )
+    
+    # Check Port
+    if is_port_in_use(port_input):
+         print(f"\n[WARNING] Port {port_input} appears to be in use.")
+         if not prompt_bool("Use this port anyway?", False):
+              while is_port_in_use(port_input):
+                  port_input = prompt_value("Enter a different port", "8081")
+                  if not is_port_in_use(port_input):
+                      break
+                  print(f"Port {port_input} is also in use.")
+
+    port = port_input
 
     np_slots = prompt_value(
         "Parallel Slots (-np)", 
