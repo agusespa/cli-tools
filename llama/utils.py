@@ -16,7 +16,7 @@ def get_total_system_memory():
             return int(subprocess.check_output(["sysctl", "-n", "hw.memsize"]).strip())
         except (subprocess.CalledProcessError, ValueError):
             return None
-    # TODO Add other platforms
+    # TODO Add Linux suport
     return None
 
 def get_advanced_memory_stats():
@@ -64,6 +64,22 @@ def format_bytes(size):
         n /= power
         curr += 1
     return f"{n:.2f}{power_labels[curr]}B"
+
+def get_local_ip():
+    """
+    Returns the local IP address of this machine on the LAN.
+    Returns None if unable to determine.
+    """
+    try:
+        # Create a socket and connect to an external address (doesn't actually send data)
+        # This helps us determine which network interface would be used
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+        return local_ip
+    except Exception:
+        return None
 
 def is_port_in_use(port):
     """
@@ -188,9 +204,10 @@ def prompt_bool(param_name, default_value, description=None):
             return False
         print("Please enter 'y' or 'n'.")
 
-def prompt_model_selection(default_model, ram_info=None):
+def prompt_model_selection(ram_info=None):
     """
-    Lists available .gguf models and prompts user to select one.
+    Lists available .gguf models and prompts user to select one by number.
+    Only allows selection from configured model directory.
     """
     gguf_files = get_gguf_files()
     
@@ -199,41 +216,35 @@ def prompt_model_selection(default_model, ram_info=None):
         new_dir = prompt_for_config_setup()
         if new_dir:
             # Retry fetching files
-             gguf_files = get_gguf_files()
+            gguf_files = get_gguf_files()
 
     if not gguf_files:
-        # Fallback to manual entry
-        return prompt_value(
-            "Model Path (-m)", 
-            default_model, 
-            description="Path to the GGUF model file"
-        )
+        print("\n[ERROR] No .gguf models found in the configured directory.")
+        print("Please add models to your configured directory and try again.")
+        sys.exit(1)
 
     print("\nAvailable Models:")
+    
+    # Display numbered list
     for i, f in enumerate(gguf_files):
         size = os.path.getsize(f)
         print(f"{i+1}) {os.path.basename(f)} ({format_bytes(size)})")
+    
     print("-"*40)
     if ram_info:
         print(ram_info)
-
-    print("\n# Select a model by number, or enter a custom path.")
-    prompt_text = f"Model Path (-m) [{default_model}]: "
-    
+        
+    # Prompt for selection
     while True:
-        user_input = input(prompt_text).strip()
+        user_input = input("\nSelect a model by number: ").strip()
         
-        if user_input == "":
-             return default_model
-        
-        # Check if user entered a number
         if user_input.isdigit():
             idx = int(user_input) - 1
             if 0 <= idx < len(gguf_files):
-                return gguf_files[idx]
+                selected_model = gguf_files[idx]
+                print(f"Selected: {os.path.basename(selected_model)}")
+                return selected_model
             else:
-                print("Invalid selection number.")
-                continue
-        
-        # Assume custom path
-        return user_input
+                print(f"Invalid selection. Please enter a number between 1 and {len(gguf_files)}.")
+        else:
+            print("Please enter a valid number.")

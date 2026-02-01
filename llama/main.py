@@ -16,6 +16,7 @@ default_ngl = "99"
 default_batch = "2048"
 default_ubatch = "1024"
 default_port = "8080"
+default_host = "127.0.0.1"  # localhost by default
 default_np = "1"
 default_fa = False
 default_jinja = True
@@ -54,7 +55,7 @@ def main():
     # Calculate the limit to use for all subsequent checks
     limit_to_use = safe_ram_limit if safe_ram_limit is not None else total_ram
 
-    model = prompt_model_selection(default_model, ram_info=ram_msg)
+    model = prompt_model_selection(ram_msg)
     
     # Check RAM vs Model Size (Preliminary)
     if model and os.path.exists(model) and total_ram and limit_to_use is not None:
@@ -161,6 +162,15 @@ def main():
 
     port = port_input
 
+    # LAN Access
+    lan_access = prompt_bool(
+        "Enable LAN Access",
+        False,
+        description="Allow access from other devices on your local network (binds to 0.0.0.0)."
+    )
+    
+    host = "0.0.0.0" if lan_access else default_host
+
     np_slots = prompt_value(
         "Parallel Slots (-np)", 
         default_np, 
@@ -188,6 +198,7 @@ def main():
         f"-ngl {ngl}",
         f"-b {batch}",
         f"-ub {ubatch}",
+        f"--host {host}",
         f"--port {port}",
         f"-np {np_slots}"
     ]
@@ -204,6 +215,16 @@ def main():
     print("-" * 40)
     print(full_command)
     print("-" * 40)
+    
+    if lan_access:
+        from utils import get_local_ip
+        local_ip = get_local_ip()
+        if local_ip:
+            print(f"\n[LAN Access Enabled]")
+            print(f"Local machine: http://localhost:{port}")
+            print(f"Other devices: http://{local_ip}:{port}")
+        else:
+            print(f"\n[LAN Access Enabled] Server will be accessible on: http://0.0.0.0:{port}")
 
     if prompt_bool("\nRun this command now?", True, description="Execute the server command immediately."):
         cwd = None
@@ -219,15 +240,15 @@ def main():
             print("Please ensure ~/.llama_cli_config exists and has a valid 'model_dir'.")
             return
 
-        print(f"\nExample: Switching to directory: {cwd}")
+        print(f"\nSwitching to directory: {cwd}")
         print("Starting server...")
 
         try:
             os.chdir(cwd)
             
             final_args = ["llama-server", "-m", model, "--alias", alias, "-c", ctx,
-                         "-n", n_predict, "-ngl", ngl, "-b", batch, "-ub", ubatch, 
-                         "--port", port, "-np", np_slots]
+                         "-n", n_predict, "-ngl", ngl, "-b", batch, "-ub", ubatch,
+                         "--host", host, "--port", port, "-np", np_slots]
             
             if flash_attn:
                 final_args.append("-fa")

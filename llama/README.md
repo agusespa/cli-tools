@@ -3,17 +3,24 @@
 This tool streamlines the configuration of `llama-server` by providing an interactive interface to set common parameters like model path, context size, and GPU layers. It helps you quickly generate complex command-line arguments by providing default values.
 
 ## Prerequisites
--   Python 3
+- Python 3 (no additional dependencies required!)
+- `llama-server` binary in your PATH
 
-## Usage
+## Setup
 
-To make this tool easy to run from anywhere, add the following alias to your shell configuration (e.g., `~/.zshrc` or `~/.bashrc`):
+Add an alias to your shell configuration (e.g., `~/.zshrc` or `~/.bashrc`):
 
 ```bash
 alias llama='/path/to/llama/main.py'
 ```
 
-1. Now you can simply type `llama` in your terminal to start the builder. 
-2. The tool will automatically look for your models in the directory provided in the `config` (it will ask you to configure the path on first run).
-3. Follow the interactive prompts to configure your server parameters.
-4. Choose to execute the command or copy the generated string.
+Then reload your shell or run `source ~/.zshrc`
+
+## Usage
+
+1. Run `llama` in your terminal to start the builder
+2. On first run, you'll be prompted to configure your models directory
+3. Use the interactive menu to select your model (arrow keys + Enter)
+4. Configure server parameters through the prompts
+5. Optionally enable LAN access to allow connections from other devices on your network
+6. The tool will generate and optionally execute the `llama-server` command
