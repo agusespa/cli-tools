@@ -26,6 +26,7 @@ default_host = "127.0.0.1"  # localhost by default
 default_np = "1"
 default_fa = True
 default_jinja = True
+default_verbose = False
 
 
 def main():
@@ -201,6 +202,12 @@ def main():
         description="Enable jinja2 template support for chat templates.",
     )
 
+    verbose = prompt_bool(
+        "Verbose Output (--verbose)",
+        default_verbose,
+        description="Enable verbose output for debugging.",
+    )
+
     cmd_parts = [
         "llama-server",
         f"-m {model}",
@@ -221,6 +228,9 @@ def main():
 
     if jinja:
         cmd_parts.append("--jinja")
+
+    if verbose:
+        cmd_parts.append("--verbose")
 
     full_command = " ".join(cmd_parts)
 
@@ -297,6 +307,8 @@ def main():
                 final_args.append("auto")
             if jinja:
                 final_args.append("--jinja")
+            if verbose:
+                final_args.append("--verbose")
 
             os.execvp("llama-server", final_args)
         except FileNotFoundError:

@@ -24,3 +24,4 @@ Then reload your shell or run `source ~/.zshrc`
 4. Configure server parameters through the prompts
 5. Optionally enable LAN access to allow connections from other devices on your network
 6. The tool will generate and optionally execute the `llama-server` command
+7. A new "Verbose Output (--verbose)" option is available to enable debugging output
