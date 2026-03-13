@@ -1,8 +1,11 @@
+import itertools
 import os
 import shutil
 import socket
 import subprocess
 import sys
+import threading
+import time
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
 
@@ -248,3 +251,35 @@ def prompt_model_selection(ram_info=None):
                 print(f"Invalid selection. Please enter a number between 1 and {len(gguf_files)}.")
         else:
             print("Please enter a valid number.")
+
+class Spinner:
+    """A simple thread-based spinner for CLI feedback."""
+    def __init__(self, message="Loading...", delay=0.1):
+        self.spinner = itertools.cycle(['-', '/', '|', '\\'])
+        self.delay = delay
+        self.message = message
+        self.running = False
+        self.thread = None
+
+    def spin(self):
+        while self.running:
+            sys.stdout.write(f"\r{next(self.spinner)} {self.message}")
+            sys.stdout.flush()
+            time.sleep(self.delay)
+            # Clear the line back to the start of the message
+            sys.stdout.write('\r' + ' ' * (len(self.message) + 2) + '\r')
+            sys.stdout.flush()
+
+    def __enter__(self):
+        self.running = True
+        self.thread = threading.Thread(target=self.spin)
+        self.thread.start()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.running = False
+        if self.thread:
+            self.thread.join()
+        # Ensure the line is cleared
+        sys.stdout.write('\r' + ' ' * (len(self.message) + 2) + '\r')
+        sys.stdout.flush()

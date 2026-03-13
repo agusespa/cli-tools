@@ -12,10 +12,11 @@ from utils import (
     is_port_in_use,
     get_advanced_memory_stats,
 )
+from installer import check_and_install_llama
 
 
 default_model = None
-default_alias = None
+default_alias = "local"
 default_ctx = "32768"
 default_n_predict = "8192"
 default_ngl = "99"
@@ -27,6 +28,11 @@ default_np = "1"
 default_fa = True
 default_jinja = True
 default_verbose = False
+default_temp = "0.7"
+default_top_p = "0.95"
+default_top_k = "20"
+default_min_p = "0.00"
+default_thinking = False
 
 
 def main():
@@ -34,12 +40,8 @@ def main():
     print("Llama Command Builder")
     print("=" * 40)
 
-    # Check for binary
-    if not check_command_exists("llama-server"):
-        print("\n[WARNING] 'llama-server' binary not found in PATH.")
-        print("You may need to install it or ensure it's in your PATH.")
-        if not prompt_bool("Continue anyway?", True):
-            return
+    if not check_and_install_llama():
+        return
 
     # Calculate System RAM info
     total_ram = get_total_system_memory()
@@ -160,6 +162,36 @@ def main():
         "UBatch Size (-ub)", default_ubatch, description="Physical batch size."
     )
 
+    temp = prompt_value(
+        "Temperature (--temp)",
+        default_temp,
+        description="Sampling temperature. Presets — thinking/coding: 0.6, thinking/general: 1.0, non-thinking/general: 0.7, non-thinking/reasoning: 1.0.",
+    )
+
+    top_p = prompt_value(
+        "Top-P (--top-p)",
+        default_top_p,
+        description="Nucleus sampling threshold (0.95 for thinking, 0.80 for non-thinking general).",
+    )
+
+    top_k = prompt_value(
+        "Top-K (--top-k)",
+        default_top_k,
+        description="Limit sampling to the top-K most likely tokens.",
+    )
+
+    min_p = prompt_value(
+        "Min-P (--min-p)",
+        default_min_p,
+        description="Minimum probability threshold relative to the most likely token.",
+    )
+
+    enable_thinking = prompt_bool(
+        "Enable Thinking (--chat-template-kwargs)",
+        default_thinking,
+        description="Thinking mode (chain-of-thought). Disable to set enable_thinking=false.",
+    )
+
     port_input = prompt_value(
         "Port (--port)", default_port, description="Port listener for the server."
     )
@@ -217,6 +249,10 @@ def main():
         f"-ngl {ngl}",
         f"-b {batch}",
         f"-ub {ubatch}",
+        f"--temp {temp}",
+        f"--top-p {top_p}",
+        f"--top-k {top_k}",
+        f"--min-p {min_p}",
         f"--host {host}",
         f"--port {port}",
         f"-np {np_slots}",
@@ -228,6 +264,10 @@ def main():
 
     if jinja:
         cmd_parts.append("--jinja")
+
+    if not enable_thinking:
+        cmd_parts.append("--chat-template-kwargs")
+        cmd_parts.append("'{\"enable_thinking\":false}'")
 
     if verbose:
         cmd_parts.append("--verbose")
@@ -294,6 +334,14 @@ def main():
                 batch,
                 "-ub",
                 ubatch,
+                "--temp",
+                temp,
+                "--top-p",
+                top_p,
+                "--top-k",
+                top_k,
+                "--min-p",
+                min_p,
                 "--host",
                 host,
                 "--port",
@@ -307,6 +355,9 @@ def main():
                 final_args.append("auto")
             if jinja:
                 final_args.append("--jinja")
+            if not enable_thinking:
+                final_args.append("--chat-template-kwargs")
+                final_args.append('{"enable_thinking":false}')
             if verbose:
                 final_args.append("--verbose")
 
