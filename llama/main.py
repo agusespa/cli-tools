@@ -12,7 +12,7 @@ from utils import (
     is_port_in_use,
     get_advanced_memory_stats,
 )
-from installer import check_and_install_llama
+from installer import check_and_install_llama, check_python_version
 
 
 default_model = None
@@ -39,6 +39,9 @@ def main():
     print("=" * 40)
     print("Llama Command Builder")
     print("=" * 40)
+
+    if not check_python_version():
+        return
 
     if not check_and_install_llama():
         return

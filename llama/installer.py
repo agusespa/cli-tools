@@ -1,5 +1,19 @@
 import subprocess
+import sys
 from utils import check_command_exists, prompt_bool, Spinner
+
+
+def check_python_version() -> bool:
+    """Ensure the user is running a modern version of Python (3.10+)."""
+    required = (3, 10)
+    current = sys.version_info[:2]
+    
+    if current < required:
+        print(f"\n[ERROR] Python {required[0]}.{required[1]}+ is required.")
+        print(f"You are currently running Python {current[0]}.{current[1]}.")
+        print("Please upgrade your Python installation to continue.")
+        return False
+    return True
 
 
 def check_and_install_llama() -> bool:
