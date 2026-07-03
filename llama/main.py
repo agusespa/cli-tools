@@ -11,6 +11,9 @@ from utils import (
     format_bytes,
     is_port_in_use,
     get_advanced_memory_stats,
+    get_top_memory_consumers,
+    print_memory_report,
+    prompt_free_memory,
 )
 from installer import check_and_install_llama, check_python_version
 
@@ -46,25 +49,39 @@ def main():
     if not check_and_install_llama():
         return
 
-    # Calculate System RAM info
     total_ram = get_total_system_memory()
-    advanced_stats = get_advanced_memory_stats()
-    safe_ram_limit = None
-    ram_msg = None
 
-    if total_ram:
-        ram_msg = f"System RAM: {format_bytes(total_ram)}"
+    def compute_ram_status():
+        advanced_stats = get_advanced_memory_stats()
+        safe_ram_limit = None
+        ram_msg = None
 
-        if advanced_stats:
-            wired = advanced_stats.get("wired", 0)
-            compressed = advanced_stats.get("compressed", 0)
-            # Estimate OS overhead roughly as Wired + Compressed + 2GB Buffer
-            os_overhead = wired + compressed + (2 * 1024 * 1024 * 1024)
-            safe_ram_limit = total_ram - os_overhead
-            if safe_ram_limit < 0:
-                safe_ram_limit = 0
+        if total_ram:
+            ram_msg = f"System RAM: {format_bytes(total_ram)}"
 
-            ram_msg += f" (Est. Available: {format_bytes(safe_ram_limit)})"
+            if advanced_stats:
+                wired = advanced_stats.get("wired", 0)
+                compressed = advanced_stats.get("compressed", 0)
+                # Estimate OS overhead roughly as Wired + Compressed + 2GB Buffer
+                os_overhead = wired + compressed + (2 * 1024 * 1024 * 1024)
+                safe_ram_limit = total_ram - os_overhead
+                if safe_ram_limit < 0:
+                    safe_ram_limit = 0
+
+                ram_msg += f" (Est. Available: {format_bytes(safe_ram_limit)})"
+
+        return safe_ram_limit, ram_msg
+
+    safe_ram_limit, ram_msg = compute_ram_status()
+
+    while True:
+        top_processes = get_top_memory_consumers()
+        print_memory_report(top_processes)
+        if ram_msg:
+            print(ram_msg)
+        if not prompt_free_memory(top_processes):
+            break
+        safe_ram_limit, ram_msg = compute_ram_status()
 
     # Calculate the limit to use for all subsequent checks
     limit_to_use = safe_ram_limit if safe_ram_limit is not None else total_ram

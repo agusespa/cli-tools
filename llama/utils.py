@@ -55,6 +55,70 @@ def get_advanced_memory_stats():
             pass
     return stats
 
+def get_top_memory_consumers(limit=10):
+    """
+    Returns a list of (pid, rss_bytes, pmem, command) tuples for the top
+    processes by resident memory usage. Works on macOS and Linux via `ps`.
+    """
+    try:
+        output = subprocess.check_output(["ps", "-Ao", "pid,rss,pmem,comm"]).decode(
+            "utf-8", errors="replace"
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return []
+
+    processes = []
+    for line in output.strip().split("\n")[1:]:  # skip header row
+        parts = line.split(None, 3)
+        if len(parts) < 4:
+            continue
+        pid_str, rss_str, pmem_str, comm = parts
+        try:
+            pid = int(pid_str)
+            rss_bytes = int(rss_str) * 1024  # ps reports RSS in KB
+            pmem = float(pmem_str)
+        except ValueError:
+            continue
+        processes.append((pid, rss_bytes, pmem, comm))
+
+    processes.sort(key=lambda p: p[1], reverse=True)
+    return processes[:limit]
+
+def print_memory_report(processes):
+    """
+    Prints a table of the given (pid, rss_bytes, pmem, command) processes.
+    """
+    if not processes:
+        print("\n[INFO] Unable to retrieve per-process memory usage.")
+        return
+
+    print(f"\nTop {len(processes)} processes by memory usage:")
+    print("-" * 60)
+    print(f"{'PID':>8} {'RSS':>10} {'%MEM':>6}  COMMAND")
+    for pid, rss_bytes, pmem, comm in processes:
+        name = os.path.basename(comm)
+        print(f"{pid:>8} {format_bytes(rss_bytes):>10} {pmem:>5.1f}%  {name}")
+    print("-" * 60)
+
+def prompt_free_memory(processes):
+    """
+    Shows the user their chance to close memory-hungry apps themselves
+    (e.g. via Activity Monitor) and offers to re-check RAM afterwards.
+    Returns True if the user asked for a re-check, False to continue on.
+    """
+    if not processes:
+        return False
+
+    print(
+        "\nIf you want to free up RAM, close some of the above now "
+        "(e.g. via Activity Monitor), then choose to re-check below."
+    )
+    proceed = prompt_bool(
+        "Continue with model selection? (choose 'n' to re-check RAM instead)",
+        True,
+    )
+    return not proceed
+
 def format_bytes(size):
     """
     Returns a human-readable string for file size.
